@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manajemen Produk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #eef3f2;
+      --surface: #ffffff;
+      --ink: #12262b;
+      --muted: #5d7177;
+      --line: #dbe5e3;
+      --brand: #0e7c7b;
+      --brand-dark: #0a5c5b;
+      --brand-soft: #dff1ef;
+      --warn: #b45309;
+      --warn-soft: #fdecc8;
+      --ok: #166534;
+      --ok-soft: #dcf5e4;
+      --err: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    .topbar {
+      background: var(--brand-dark);
+      color: #fff;
+      padding: 28px 24px 64px;
+    }
+    .topbar-inner, .layout { max-width: 1120px; margin: 0 auto; }
+    .topbar h1 { margin: 0 0 4px; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; }
+    .topbar p { margin: 0; color: #b9dedb; font-size: 0.95rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      gap: 20px;
+      padding: 0 24px 40px;
+      margin-top: -40px;
+      align-items: start;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 6px 24px rgba(18, 38, 43, 0.06);
+    }
+    .card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px; border-bottom: 1px solid var(--line);
+    }
+    .card-head h2 { margin: 0; font-size: 1.1rem; font-weight: 700; }
+    .count { font-size: 0.85rem; color: var(--muted); }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 13px 22px; text-align: left; white-space: nowrap; }
+    th { font-size: 0.82rem; font-weight: 600; color: var(--muted); background: #f6f9f8; }
+    td { border-top: 1px solid var(--line); }
+    td.num, th.num { text-align: right; }
+    tbody tr:hover { background: #f9fcfb; }
+    .nama { font-weight: 600; }
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.8rem; font-weight: 600;
+    }
+    .badge.ok { background: var(--ok-soft); color: var(--ok); }
+    .badge.low { background: var(--warn-soft); color: var(--warn); }
+    .state { padding: 28px 22px; color: var(--muted); text-align: center; }
+
+    .chat { display: flex; flex-direction: column; position: sticky; top: 16px; }
+    .chat-title { display: flex; align-items: center; gap: 10px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; }
+    .log {
+      height: 360px; overflow-y: auto; padding: 18px;
+      display: flex; flex-direction: column; gap: 10px; background: #f6f9f8;
+    }
+    .msg {
+      max-width: 85%; padding: 10px 14px; border-radius: 14px;
+      font-size: 0.93rem; white-space: pre-wrap; word-wrap: break-word;
+    }
+    .msg.user { align-self: flex-end; background: var(--brand); color: #fff; border-bottom-right-radius: 4px; }
+    .msg.ai { align-self: flex-start; background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+    .msg.error { align-self: flex-start; background: #fdeceb; color: var(--err); border: 1px solid #f6c9c5; }
+    .msg.typing { color: var(--muted); font-style: italic; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 18px 0; }
+    .chip {
+      font: inherit; font-size: 0.82rem; cursor: pointer;
+      border: 1px solid var(--line); background: var(--brand-soft); color: var(--brand-dark);
+      padding: 5px 12px; border-radius: 999px;
+    }
+    .chip:hover { background: #cbe8e5; }
+    .composer { display: flex; gap: 8px; padding: 14px 18px 18px; }
+    .composer input {
+      flex: 1; font: inherit; padding: 11px 14px; border-radius: 10px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+    }
+    .composer button {
+      font: inherit; font-weight: 600; cursor: pointer; border: 0; border-radius: 10px;
+      padding: 0 18px; background: var(--brand); color: #fff;
+    }
+    .composer button:hover { background: var(--brand-dark); }
+    .composer button:disabled { opacity: 0.6; cursor: not-allowed; }
+    input:focus-visible, button:focus-visible {
+      outline: 3px solid #7cc8c4; outline-offset: 1px;
+    }
+
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+      .chat { position: static; }
+      th, td { padding: 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1>Manajemen Produk</h1>
+      <p>Kelola stok dan tanya asisten AI (Google Gemini) tentang produkmu.</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card">
+      <div class="card-head">
+        <h2>Daftar Produk</h2>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Nama</th><th class="num">Harga</th><th class="num">Stok</th></tr>
+          </thead>
+          <tbody id="produk-body">
+            <tr><td colspan="4" class="state">Memuat produk...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card chat">
+      <div class="card-head">
+        <div class="chat-title"><span class="dot"></span><h2>AI Assistant</h2></div>
+      </div>
+      <div class="log" id="log" aria-live="polite">
+        <div class="msg ai">Halo! Saya bisa membantu menjawab pertanyaan seputar produk, harga, dan stok.</div>
+      </div>
+      <div class="chips">
+        <button class="chip" type="button">Produk apa yang stoknya menipis?</button>
+        <button class="chip" type="button">Produk termurah apa?</button>
+      </div>
+      <div class="composer">
+        <input id="prompt" type="text" maxlength="500" placeholder="Tulis pertanyaan..." autocomplete="off">
+        <button id="send" type="button">Kirim</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const rupiah = (n) => "Rp " + Number(n).toLocaleString("id-ID");
+
+    async function loadProduk() {
+      const body = document.getElementById("produk-body");
+      try {
+        const res = await fetch("/produk");
+        const json = await res.json();
+        const list = Array.isArray(json) ? json : (json.data || []);
+        document.getElementById("count").textContent = list.length + " produk";
+        body.innerHTML = "";
+        if (!list.length) {
+          body.innerHTML = '<tr><td colspan="4" class="state">Belum ada produk.</td></tr>';
+          return;
+        }
+        list.forEach((p) => {
+          const tr = document.createElement("tr");
+          const low = Number(p.stok) <= 3;
+          tr.innerHTML = `
+            <td>${p.id}</td>
+            <td class="nama"></td>
+            <td class="num">${rupiah(p.harga)}</td>
+            <td class="num"><span class="badge ${low ? "low" : "ok"}">${p.stok}${low ? " (menipis)" : ""}</span></td>`;
+          tr.querySelector(".nama").textContent = p.nama;
+          body.appendChild(tr);
+        });
+      } catch (e) {
+        body.innerHTML = '<tr><td colspan="4" class="state">Gagal memuat produk.</td></tr>';
+      }
+    }
+
+    const log = document.getElementById("log");
+    const input = document.getElementById("prompt");
+    const sendBtn = document.getElementById("send");
+
+    function addMsg(text, type) {
+      const div = document.createElement("div");
+      div.className = "msg " + type;
+      div.textContent = text;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+      return div;
+    }
+
+    async function send(text) {
+      const prompt = (text || input.value).trim();
+      if (!prompt) return;
+      addMsg(prompt, "user");
+      input.value = "";
+      sendBtn.disabled = true;
+      const typing = addMsg("AI sedang mengetik...", "ai typing");
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: prompt })
+        });
+        const data = await res.json();
+        typing.remove();
+        const reply = data.data && data.data.reply;
+        if (res.ok && reply) addMsg(reply, "ai");
+        else addMsg(data.message || data.error || "Terjadi kesalahan pada server.", "error");
+      } catch (e) {
+        typing.remove();
+        addMsg("Tidak bisa terhubung ke server.", "error");
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+
+    sendBtn.addEventListener("click", () => send());
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+    document.querySelectorAll(".chip").forEach((c) =>
+      c.addEventListener("click", () => send(c.textContent)));
+
+    loadProduk();
+  </script>
+</body>
+</html>

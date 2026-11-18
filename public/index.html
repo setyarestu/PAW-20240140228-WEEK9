@@ -1,0 +1,51 @@
+<div id="chat-box" style="max-width:480px;margin:auto">
+  <div id="messages" style="height:320px;overflow-y:auto;border:1px solid #ccc;padding:8px"></div>
+  <div style="display:flex;gap:6px;margin-top:8px">
+    <input id="msg" style="flex:1" placeholder="Tanya sesuatu..." maxlength="500" />
+    <button id="send">Kirim</button>
+  </div>
+</div>
+
+<script>
+const box = document.getElementById("messages");
+const input = document.getElementById("msg");
+const btn = document.getElementById("send");
+
+function addMsg(text, who) {
+  const d = document.createElement("div");
+  d.textContent = (who === "user" ? "Anda: " : "AI: ") + text;
+  d.style.margin = "6px 0";
+  if (who === "error") d.style.color = "red";
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+  return d;
+}
+
+async function send() {
+  const message = input.value.trim();
+  if (!message) return;
+  addMsg(message, "user");
+  input.value = "";
+  btn.disabled = true;
+  const loading = addMsg("Sedang mengetik...", "ai"); // indikator loading
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    const json = await res.json();
+    loading.remove();
+    if (!res.ok || !json.success) throw new Error(json.message || "Terjadi kesalahan");
+    addMsg(json.data.reply, "ai");
+  } catch (e) {
+    loading.remove();
+    addMsg(e.message, "error"); // state error
+  } finally {
+    btn.disabled = false;
+  }
+}
+btn.onclick = send;
+input.addEventListener("keydown", (e) => e.key === "Enter" && send());
+</script>
