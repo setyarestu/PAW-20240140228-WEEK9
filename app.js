@@ -1,17 +1,21 @@
-require('dotenv').config();
-const express = require('express');
-const logger = require('./logger');
-const chatRoutes = require('./routes/chat.routes');
-const produkRoutes = require('./produkRoutes');
+﻿const express = require("express");
+const path = require("path");
+require("dotenv").config();
+
+const acaraRoutes = require("./acaraRoutes");
 
 const app = express();
 app.use(express.json());
-app.use(logger);
-app.set('view engine', 'ejs');
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
-app.get('/', (req, res) => res.render('index'));
-app.use('/api', chatRoutes);
-app.use('/produk', produkRoutes);
+app.use("/api/acara", acaraRoutes);
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server jalan di http://localhost:${PORT}`);
+});

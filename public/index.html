@@ -1,51 +1,357 @@
-<div id="chat-box" style="max-width:480px;margin:auto">
-  <div id="messages" style="height:320px;overflow-y:auto;border:1px solid #ccc;padding:8px"></div>
-  <div style="display:flex;gap:6px;margin-top:8px">
-    <input id="msg" style="flex:1" placeholder="Tanya sesuatu..." maxlength="500" />
-    <button id="send">Kirim</button>
-  </div>
-</div>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Asisten Deskripsi Acara Berbasis AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #eef3f2;
+      --surface: #ffffff;
+      --ink: #12262b;
+      --muted: #5d7177;
+      --line: #dbe5e3;
+      --brand: #0e7c7b;
+      --brand-dark: #0a5c5b;
+      --brand-soft: #dff1ef;
+      --warn: #b45309;
+      --warn-soft: #fdecc8;
+      --err: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    .topbar {
+      background: var(--brand-dark);
+      color: #fff;
+      padding: 28px 24px 64px;
+    }
+    .topbar-inner, .layout { max-width: 1160px; margin: 0 auto; }
+    .topbar h1 { margin: 0 0 4px; font-size: 1.75rem; font-weight: 800; }
+    .topbar p { margin: 0; color: #b9dedb; font-size: 0.95rem; }
 
-<script>
-const box = document.getElementById("messages");
-const input = document.getElementById("msg");
-const btn = document.getElementById("send");
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.35fr);
+      gap: 20px;
+      padding: 0 24px 40px;
+      margin-top: -40px;
+      align-items: start;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 6px 24px rgba(18, 38, 43, 0.06);
+      overflow: hidden;
+    }
+    .card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--line);
+    }
+    .card-head h2 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+    .form-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 0.85rem; font-weight: 600; }
+    input, select, textarea {
+      font: inherit; padding: 10px 12px; border-radius: 9px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    button {
+      font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+      border: 0; border-radius: 9px; padding: 9px 14px;
+    }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-ai { background: var(--brand-soft); color: var(--brand-dark); }
+    .btn-ai:hover { background: #cbe8e5; }
+    .btn-muted { background: #e8efee; color: var(--ink); }
+    .btn-danger { background: #fdeceb; color: var(--err); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-function addMsg(text, who) {
-  const d = document.createElement("div");
-  d.textContent = (who === "user" ? "Anda: " : "AI: ") + text;
-  d.style.margin = "6px 0";
-  if (who === "error") d.style.color = "red";
-  box.appendChild(d);
-  box.scrollTop = box.scrollHeight;
-  return d;
-}
+    .alert { padding: 10px 12px; border-radius: 9px; font-size: 0.86rem; display: none; }
+    .alert.err { display: block; background: #fdeceb; color: var(--err); border: 1px solid #f6c9c5; }
+    .alert.ok { display: block; background: #dcf5e4; color: #166534; border: 1px solid #b5e5c4; }
 
-async function send() {
-  const message = input.value.trim();
-  if (!message) return;
-  addMsg(message, "user");
-  input.value = "";
-  btn.disabled = true;
-  const loading = addMsg("Sedang mengetik...", "ai"); // indikator loading
+    .acara-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+    .acara-item {
+      border: 1px solid var(--line); border-radius: 11px; padding: 14px;
+      background: #fbfdfc;
+    }
+    .acara-item h3 { margin: 0 0 4px; font-size: 1rem; }
+    .meta { font-size: 0.83rem; color: var(--muted); margin-bottom: 8px; }
+    .desc-preview { font-size: 0.9rem; margin: 0 0 10px; white-space: pre-line; }
 
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+    @media (max-width: 900px) {
+      .layout, .row-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1>Asisten Deskripsi Acara Berbasis AI</h1>
+      <p>Kelola data acara dan buat deskripsi promosi secara otomatis dengan gaya bahasa Formal atau Santai.</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card">
+      <div class="card-head">
+        <h2 id="form-title">Tambah / Edit Acara</h2>
+      </div>
+      <form class="form-body" id="acara-form">
+        <input type="hidden" id="acara-id">
+        <div id="form-alert" class="alert"></div>
+
+        <div class="field">
+          <label for="judul">Judul Acara *</label>
+          <input id="judul" type="text" required placeholder="Contoh: Workshop Web Development">
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="tanggal">Tanggal *</label>
+            <input id="tanggal" type="date" required>
+          </div>
+          <div class="field">
+            <label for="lokasi">Lokasi *</label>
+            <input id="lokasi" type="text" required placeholder="Contoh: Ruang Lab 2">
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="pembicara">Pembicara *</label>
+            <input id="pembicara" type="text" required placeholder="Contoh: Budi Santoso">
+          </div>
+          <div class="field">
+            <label for="target_peserta">Target Peserta *</label>
+            <input id="target_peserta" type="text" required placeholder="Contoh: Mahasiswa Semester 3-7">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="gaya_bahasa">Gaya Bahasa Deskripsi</label>
+          <select id="gaya_bahasa">
+            <option value="Formal">Formal</option>
+            <option value="Santai">Santai</option>
+          </select>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn-ai" id="btn-generate">Buat Deskripsi</button>
+          <button type="button" class="btn-ai" id="btn-regenerate">Buat Ulang</button>
+        </div>
+
+        <div class="field">
+          <label for="deskripsi">Deskripsi Acara (Bisa Disunting Sebelum Disimpan)</label>
+          <textarea id="deskripsi" placeholder="Klik Buat Deskripsi untuk generate otomatis atau tulis manual di sini..."></textarea>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn-primary" id="btn-save">Simpan Acara</button>
+          <button type="button" class="btn-muted" id="btn-reset">Batal / Reset</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Daftar Acara</h2>
+        <span id="total-acara" style="font-size:0.85rem;color:var(--muted)"></span>
+      </div>
+      <div class="acara-list" id="acara-list">
+        <p style="color:var(--muted)">Memuat daftar acara...</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const alertBox = document.getElementById("form-alert");
+    const form = document.getElementById("acara-form");
+    const listEl = document.getElementById("acara-list");
+
+    function showAlert(msg, type = "err") {
+      alertBox.className = "alert " + type;
+      alertBox.textContent = msg;
+    }
+
+    function clearAlert() {
+      alertBox.className = "alert";
+      alertBox.textContent = "";
+    }
+
+    function getFormData() {
+      return {
+        judul: document.getElementById("judul").value.trim(),
+        tanggal: document.getElementById("tanggal").value.trim(),
+        lokasi: document.getElementById("lokasi").value.trim(),
+        pembicara: document.getElementById("pembicara").value.trim(),
+        target_peserta: document.getElementById("target_peserta").value.trim(),
+        gaya_bahasa: document.getElementById("gaya_bahasa").value,
+        deskripsi: document.getElementById("deskripsi").value.trim(),
+      };
+    }
+
+    function resetForm() {
+      form.reset();
+      document.getElementById("acara-id").value = "";
+      document.getElementById("form-title").textContent = "Tambah / Edit Acara";
+      clearAlert();
+    }
+
+    async function generateAI(isRegenerate = false) {
+      clearAlert();
+      const data = getFormData();
+      if (!data.judul || !data.tanggal || !data.lokasi || !data.pembicara || !data.target_peserta) {
+        showAlert("Isi judul, tanggal, lokasi, pembicara, dan target peserta terlebih dahulu.", "err");
+        return;
+      }
+
+      const btnGen = document.getElementById("btn-generate");
+      const btnRegen = document.getElementById("btn-regenerate");
+      btnGen.disabled = true;
+      btnRegen.disabled = true;
+      const prevDesc = document.getElementById("deskripsi").value;
+      document.getElementById("deskripsi").value = isRegenerate
+        ? "Sedang membuat ulang deskripsi..."
+        : "Sedang membuat deskripsi dengan AI...";
+
+      try {
+        const res = await fetch("/api/acara/generate-deskripsi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          document.getElementById("deskripsi").value = prevDesc;
+          showAlert(json.message || "Gagal membuat deskripsi AI.", "err");
+          return;
+        }
+        document.getElementById("deskripsi").value = json.data.deskripsi || "";
+        showAlert("Deskripsi berhasil dibuat. Silakan tinjau atau sunting sebelum menyimpan.", "ok");
+      } catch (err) {
+        document.getElementById("deskripsi").value = prevDesc;
+        showAlert("Kesalahan jaringan saat menghubungi server.", "err");
+      } finally {
+        btnGen.disabled = false;
+        btnRegen.disabled = false;
+      }
+    }
+
+    async function loadAcara() {
+      try {
+        const res = await fetch("/api/acara");
+        const json = await res.json();
+        const items = json.data || [];
+        document.getElementById("total-acara").textContent = items.length + " acara";
+
+        if (!items.length) {
+          listEl.innerHTML = '<p style="color:var(--muted)">Belum ada acara tersimpan.</p>';
+          return;
+        }
+
+        listEl.innerHTML = "";
+        items.forEach((item) => {
+          const div = document.createElement("div");
+          div.className = "acara-item";
+          const cuplikan = item.deskripsi
+            ? (item.deskripsi.length > 180 ? item.deskripsi.slice(0, 180) + "..." : item.deskripsi)
+            : "(Belum ada deskripsi)";
+
+          div.innerHTML = `
+            <h3></h3>
+            <div class="meta"></div>
+            <p class="desc-preview"></p>
+            <div class="actions">
+              <button type="button" class="btn-muted btn-edit">Ubah</button>
+              <button type="button" class="btn-danger btn-del">Hapus</button>
+            </div>
+          `;
+          div.querySelector("h3").textContent = item.judul;
+          div.querySelector(".meta").textContent =
+            `Tanggal: ${item.tanggal} • Lokasi: ${item.lokasi} • Pembicara: ${item.pembicara} • Peserta: ${item.target_peserta}`;
+          div.querySelector(".desc-preview").textContent = cuplikan;
+
+          div.querySelector(".btn-edit").addEventListener("click", () => {
+            clearAlert();
+            document.getElementById("form-title").textContent = "Ubah Acara #" + item.id;
+            document.getElementById("acara-id").value = item.id;
+            document.getElementById("judul").value = item.judul;
+            document.getElementById("tanggal").value = item.tanggal;
+            document.getElementById("lokasi").value = item.lokasi;
+            document.getElementById("pembicara").value = item.pembicara;
+            document.getElementById("target_peserta").value = item.target_peserta;
+            document.getElementById("deskripsi").value = item.deskripsi || "";
+          });
+
+          div.querySelector(".btn-del").addEventListener("click", async () => {
+            if (!confirm(`Yakin ingin menghapus acara "${item.judul}"?`)) return;
+            const delRes = await fetch("/api/acara/" + item.id, { method: "DELETE" });
+            if (delRes.ok) {
+              loadAcara();
+            } else {
+              showAlert("Gagal menghapus acara.", "err");
+            }
+          });
+
+          listEl.appendChild(div);
+        });
+      } catch (err) {
+        listEl.innerHTML = '<p style="color:var(--err)">Gagal memuat daftar acara.</p>';
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearAlert();
+      const id = document.getElementById("acara-id").value;
+      const data = getFormData();
+      if (!data.judul || !data.tanggal || !data.lokasi || !data.pembicara || !data.target_peserta) {
+        showAlert("Semua field wajib acara harus diisi.", "err");
+        return;
+      }
+
+      const url = id ? "/api/acara/" + id : "/api/acara";
+      const method = id ? "PUT" : "POST";
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          showAlert(json.message || "Gagal menyimpan data acara.", "err");
+          return;
+        }
+        resetForm();
+        showAlert("Data acara berhasil disimpan.", "ok");
+        loadAcara();
+      } catch (err) {
+        showAlert("Tidak dapat terhubung ke server.", "err");
+      }
     });
-    const json = await res.json();
-    loading.remove();
-    if (!res.ok || !json.success) throw new Error(json.message || "Terjadi kesalahan");
-    addMsg(json.data.reply, "ai");
-  } catch (e) {
-    loading.remove();
-    addMsg(e.message, "error"); // state error
-  } finally {
-    btn.disabled = false;
-  }
-}
-btn.onclick = send;
-input.addEventListener("keydown", (e) => e.key === "Enter" && send());
-</script>
+
+    document.getElementById("btn-generate").addEventListener("click", () => generateAI(false));
+    document.getElementById("btn-regenerate").addEventListener("click", () => generateAI(true));
+    document.getElementById("btn-reset").addEventListener("click", resetForm);
+
+    loadAcara();
+  </script>
+</body>
+</html>
